@@ -3,10 +3,10 @@
 namespace Abather\SpatieLaravelModelStatesActions;
 
 use Abather\SpatieLaravelModelStatesActions\Services\ChangStateService;
-use Filament\Actions;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Infolists\Components\TextEntry;
-use Filament\Tables;
+use Filament\Actions\Action as TableAction;
 use Filament\Tables\Columns\TextColumn;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User;
@@ -122,9 +122,9 @@ abstract class State extends base
         return static::$exclude_from_filters;
     }
 
-    public static function tableAction($user): Tables\Actions\Action
+    public static function tableAction($user): TableAction
     {
-        return Tables\Actions\Action::make(class_basename(static::class))
+        return TableAction::make(class_basename(static::class))
             ->label(static::label())
             ->color(static::color())
             ->icon(static::icon())
@@ -134,9 +134,9 @@ abstract class State extends base
             ->requiresConfirmation(static::requiresConfirmation());
     }
 
-    public static function action($user): Actions\Action
+    public static function action($user): Action
     {
-        return Actions\Action::make(class_basename(static::class))
+        return Action::make(class_basename(static::class))
             ->label(static::label())
             ->form(fn (Model $record) => static::getActionForm($record))
             ->color(static::color())
@@ -152,9 +152,9 @@ abstract class State extends base
 
         return TextColumn::make($field)
             ->label($label ?? __($field))
-            ->state(fn (?Model $record) => $record->{$field}->title())
+            ->formatStateUsing(fn (?Model $record) => $record->{$field}->title())
             ->badge()
-            ->when(! $without_icon, fn (TextColumn $compnont) => $compnont->icon(fn (?Model $record) => $record->{$field}->icon()))
+            ->when(! $without_icon, fn (TextColumn $component) => $component->icon(fn (?Model $record) => $record->{$field}->icon()))
             ->color(fn (?Model $record) => $record->{$field}->color());
     }
 
@@ -164,9 +164,9 @@ abstract class State extends base
 
         return TextEntry::make($field)
             ->label($label ?? __($field))
-            ->state(fn (?Model $record) => $record->{$field}->title())
+            ->formatStateUsing(fn (?Model $record) => $record->{$field}->title())
             ->badge()
-            ->when(! $without_icon, fn (TextEntry $compnont) => $compnont->icon(fn (?Model $record) => $record->{$field}->icon()))
+            ->when(! $without_icon, fn (TextEntry $component) => $component->icon(fn (?Model $record) => $record->{$field}->icon()))
             ->color(fn (?Model $record) => $record->{$field}->color());
     }
 
@@ -216,12 +216,12 @@ abstract class State extends base
         return $status;
     }
 
-    public function display(bool $without_icon = false): Actions\Action
+    public function display(bool $without_icon = false): Action
     {
-        return Actions\Action::make(class_basename($this))
+        return Action::make(class_basename($this))
             ->label($this->title())
             ->color($this->color())
-            ->when(! $without_icon, fn (Actions\Action $compnont) => $compnont->icon($this->icon()))
+            ->when(! $without_icon, fn (Action $component) => $component->icon($this->icon()))
             ->disabled();
     }
 
