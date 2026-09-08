@@ -2,6 +2,7 @@
 
 namespace Abather\SpatieLaravelModelStatesActions\Services;
 
+use Abather\SpatieLaravelModelStatesActions\State;
 use Abather\SpatieLaravelModelStatesActions\Traits\Makeable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User;
@@ -34,7 +35,7 @@ class _BaseService
             $excluded_states = [$excluded_states];
         }
 
-        $this->excluded_states = array_merge($this->excluded_states, $excluded_states);
+        $this->excluded_states = array_merge($this->excluded_states, $this->resolveStates($excluded_states));
 
         return $this;
     }
@@ -45,13 +46,22 @@ class _BaseService
             $include_states = [$include_states];
         }
 
-        $this->include_states = array_merge($this->include_states, $include_states);
+        $this->include_states = array_merge($this->include_states, $this->resolveStates($include_states));
 
         return $this;
     }
 
+    //States may be passed by their $name, so resolve them back to class names.
+
+    protected function resolveStates(array $states): array
+    {
+        $base = State::getBaseStateClass($this->model, $this->field);
+
+        return array_map(fn ($state) => $base::resolveStateClass($state), $states);
+    }
+
     protected function getStates(): array
     {
-        return array_diff($this->model::getStatesFor($this->field)->toArray(), $this->excluded_states);
+        return array_diff(State::getStateClasses($this->model, $this->field), $this->excluded_states);
     }
 }

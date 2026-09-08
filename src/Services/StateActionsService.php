@@ -12,7 +12,7 @@ class StateActionsService extends _BaseService
 
         foreach ($this->getStates() as $state) {
             if ($state::includeToActions() || in_array($state, $this->include_states)) {
-                $actions[$this->getActionOrder($actions, $state::order())] = $state::tableAction($this->user);
+                $actions[$this->getActionOrder($actions, $state::order())] = $state::tableAction($this->user, $this->field);
             }
         }
 
@@ -37,7 +37,7 @@ class StateActionsService extends _BaseService
 
         foreach ($this->getStates() as $state) {
             if ($state::includeToActions() || in_array($state, $this->include_states)) {
-                $actions[$this->getActionOrder($actions, $state::order())] = $state::action($this->user);
+                $actions[$this->getActionOrder($actions, $state::order())] = $state::action($this->user, $this->field);
             }
         }
 

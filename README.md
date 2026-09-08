@@ -34,6 +34,47 @@ abstract class PaymentState extends State
 }
 ```
 
+### state field
+
+by default the package expects the state to be stored in a field called `state`, if you use another field you can pass it to the services:
+
+```php
+StateActionsService::make(Order::class, 'importance')->actions()
+StateFilterService::make(Order::class, 'importance')->tableFilter()
+```
+
+the field will be passed to the actions, so the authorization and the transition will use it.
+
+for the methods that you call on the state itself you can pass the field as well:
+
+```php
+OrderState::textColumn('importance')
+OrderState::textEntry('importance')
+OrderState::formSelect(Order::class, 'importance')
+```
+
+or you can override `$state_key` in your base state class and skip passing the field every time:
+
+```php
+abstract class OrderState extends State
+{
+    public static string $state_key = 'importance';
+}
+```
+
+### state name
+
+you can name your states as you do in Spatie package:
+
+```php
+class Paid extends PaymentState
+{
+    public static $name = 'paid';
+}
+```
+
+the package will resolve the name back to the state class, and the value that stored in the database will be used for the select options and the filters.
+
 ### configure authorization
 
 you can define ability name for each state that well be used to determine if the user can change the state or not as:
@@ -269,6 +310,22 @@ public static function table(Table $table): Table
                     ->tableFilter(),
             ]);
     }
+```
+
+the filter will use the field that passed to the service, so if your state stored in another field you only need to pass it once:
+
+```php
+StateFilterService::make(static::getModel(), 'importance')
+    ->tableFilter(),
+```
+
+you can hide a state from the filters by overriding `$exclude_from_filters` in the state:
+
+```php
+class Canceled extends OrderState
+{
+    public static bool $exclude_from_filters = true;
+}
 ```
 
 ## Testing

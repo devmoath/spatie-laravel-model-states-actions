@@ -47,6 +47,30 @@ abstract class State extends base
         return $name ?? static::$state_key;
     }
 
+    //The base state class that the model casts the field to.
+
+    public static function getBaseStateClass(string $model, ?string $field = null): string
+    {
+        return (new $model)->getCasts()[static::getStateKeyName($field)];
+    }
+
+    //States may be registered by their $name, so resolve them back to class names.
+
+    public static function getStateClasses(string $model, ?string $field = null): array
+    {
+        $field = static::getStateKeyName($field);
+
+        $states = $model::getStatesFor($field)->toArray();
+
+        if (empty($states)) {
+            return [];
+        }
+
+        $base = static::getBaseStateClass($model, $field);
+
+        return array_map(fn ($state) => $base::resolveStateClass($state), $states);
+    }
+
     //Label will be viewed for buttons and actions.
 
     protected static function translate(string $key, string $default): string
@@ -114,7 +138,7 @@ abstract class State extends base
 
     public static function includeToFilters(): bool
     {
-        return ! static::excludeFromActions();
+        return ! static::excludeFromFilters();
     }
 
     public static function excludeFromFilters(): bool
@@ -122,27 +146,27 @@ abstract class State extends base
         return static::$exclude_from_filters;
     }
 
-    public static function tableAction($user): TableAction
+    public static function tableAction($user, ?string $field = null): TableAction
     {
         return TableAction::make(class_basename(static::class))
             ->label(static::label())
             ->color(static::color())
             ->icon(static::icon())
             ->form(fn (Model $record) => static::getActionForm($record))
-            ->authorize(fn (Model $record) => static::isAuthorized($user, $record))
-            ->action(fn (Model $record, ?array $data) => static::transferToMe($record, $user, $data))
+            ->authorize(fn (Model $record) => static::isAuthorized($user, $record, null, $field))
+            ->action(fn (Model $record, ?array $data) => static::transferToMe($record, $user, $data, $field))
             ->requiresConfirmation(static::requiresConfirmation());
     }
 
-    public static function action($user): Action
+    public static function action($user, ?string $field = null): Action
     {
         return Action::make(class_basename(static::class))
             ->label(static::label())
             ->form(fn (Model $record) => static::getActionForm($record))
             ->color(static::color())
             ->icon(static::icon())
-            ->authorize(fn (Model $record) => static::isAuthorized($user, $record))
-            ->action(fn (Model $record, ?array $data) => static::transferToMe($record, $user, $data))
+            ->authorize(fn (Model $record) => static::isAuthorized($user, $record, null, $field))
+            ->action(fn (Model $record, ?array $data) => static::transferToMe($record, $user, $data, $field))
             ->requiresConfirmation(static::requiresConfirmation());
     }
 
@@ -170,7 +194,7 @@ abstract class State extends base
             ->color(fn (?Model $record) => $record->{$field}->color());
     }
 
-    public static function formSelect(string $model, ?string $field = null): Select
+    public static function formSelect(string $model, ?string $field = null, ?string $label = null): Select
     {
         $field = static::getStateKeyName($field);
 
@@ -194,8 +218,8 @@ abstract class State extends base
 
         $status = [];
 
-        foreach ($model::getStatesFor($field)->toArray() as $state) {
-            $status[$state] = $state::title();
+        foreach (static::getStateClasses($model, $field) as $state) {
+            $status[$state::getMorphClass()] = $state::title();
         }
 
         return $status;
@@ -207,9 +231,9 @@ abstract class State extends base
 
         $status = [];
 
-        foreach (get_class($record)::getStatesFor($field)->toArray() as $state) {
-            if (static::isAuthorized($user, $record, $state)) {
-                $status[$state] = $state::label();
+        foreach (static::getStateClasses(get_class($record), $field) as $state) {
+            if (static::isAuthorized($user, $record, $state, $field)) {
+                $status[$state::getMorphClass()] = $state::label();
             }
         }
 
@@ -225,10 +249,10 @@ abstract class State extends base
             ->disabled();
     }
 
-    public static function transferToMe(Model $record, User $user, ?array $data = [])
+    public static function transferToMe(Model $record, User $user, ?array $data = [], ?string $field = null)
     {
         ChangStateService::make($record, $user)
-            ->attribute(static::getStateKeyName())
+            ->attribute(static::getStateKeyName($field))
             ->skipAuthorization(static::skipAuthorization())
             ->to(static::class);
     }
@@ -243,11 +267,11 @@ abstract class State extends base
         return static::$requires_confirmation;
     }
 
-    public static function isAuthorized($user, $record, ?string $finalState = null): bool
+    public static function isAuthorized($user, $record, ?string $finalState = null, ?string $field = null): bool
     {
         $finalState = $finalState ?? static::class;
 
-        if (!$record->{$finalState::getStateKeyName()}->canTransitionTo($finalState)) {
+        if (!$record->{$finalState::getStateKeyName($field)}->canTransitionTo($finalState)) {
             return false;
         }
 
